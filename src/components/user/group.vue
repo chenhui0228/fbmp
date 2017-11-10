@@ -10,13 +10,13 @@
     <el-col :span="24" class="warp-main">
       <!--工具条-->
       <el-col :span="24" class="toolbar" style="padding-bottom: 0px;">
-        <el-button type="primary" @click="showAddDialog" style="margin-left: 5px">新建</el-button>
         <el-button type="danger" @click="batchDelete" :disabled="this.sels.length===0">
           批量删除
         </el-button>
+        <el-button type="primary" @click="showAddDialog" style="margin-left: 5px">新建</el-button>
         <el-form :inline="true" :model="filters" style="float:right; margin-right: 5px">
           <el-form-item>
-            <el-input v-model="filters.groupName" placeholder="组名" style="min-width: 240px;"></el-input>
+            <el-input v-model="filters.name" placeholder="组名" style="min-width: 240px;"></el-input>
           </el-form-item>
           <el-form-item>
             <el-button type="primary" @click="getGroup">查询</el-button>
@@ -30,10 +30,10 @@
         <el-table-column type="selection" width="50"></el-table-column>
         <el-table-column type="index" width="60">
         </el-table-column>
-        <el-table-column prop="groupName" label="组名" width="200" sortable>
+        <el-table-column prop="name" label="组名" width="300" sortable>
         </el-table-column>
-        <el-table-column prop="role" label="角色" width="200" sortable>
-        </el-table-column>
+        <!--<el-table-column prop="role" label="角色" width="200" sortable>-->
+        <!--</el-table-column>-->
         <el-table-column prop="description" label="描述" sortable>
         </el-table-column>
         <el-table-column label="操作" width="250">
@@ -64,11 +64,8 @@
       <!--编辑框 -->
       <el-dialog title="编辑" v-model="editFormVisible" :close-on-click-modal="false">
         <el-form :model="editForm" label-width="100px" :rules="editFormRules" ref="editForm">
-          <el-form-item prop="groupName" label="组名">
-            <el-input v-model="editForm.groupName" auto-complete="off"></el-input>
-          </el-form-item>
-          <el-form-item prop="role" label="角色">
-            <el-input v-model="editForm.role" auto-complete="off"></el-input>
+          <el-form-item prop="name" label="组名">
+            <el-input v-model="editForm.name" auto-complete="off"></el-input>
           </el-form-item>
           <el-form-item prop="description" label="描述">
             <el-input type="textarea" v-model="editForm.description" :rows="4"></el-input>
@@ -83,11 +80,8 @@
       <!--新建框-->
       <el-dialog title="新建" v-model="addFormVisible" :close-on-click-modal="false">
         <el-form :model="addForm" label-width="100px" :rules="addFormRules" ref="addForm">
-          <el-form-item prop="groupName" label="组名">
-            <el-input v-model="addForm.groupName" auto-complete="off"></el-input>
-          </el-form-item>
-          <el-form-item prop="role" label="角色">
-            <el-input v-model="addForm.role" auto-complete="off"></el-input>
+          <el-form-item prop="name" label="组名">
+            <el-input v-model="addForm.name" auto-complete="off"></el-input>
           </el-form-item>
           <el-form-item prop="description" label="描述">
             <el-input type="textarea" v-model="addForm.description" :rows="4"></el-input>
@@ -104,13 +98,13 @@
 </template>
 
 <script>
-  import { reqGetGroupList, reqEditGroup, reqAddGroup, reqDelGroup, reqBatchDelGroup} from '../../api/api';
+  import { reqGetGroupList, reqEditGroup, reqAddGroup, reqDelGroup} from '../../api/api';
 
   export default {
     data() {
       return {
         filters: {
-          groupName: ''
+          name: ''
         },
         listLoading: false,
         isVisible:true,
@@ -118,13 +112,14 @@
         total: 0,
         page: 1,
         per_page: 10,
+        offset: 0,
         sels: [], //列表选中列
 
         //编辑相关数据
         editFormVisible: false,//编辑界面是否显示
         editLoading: false,
         editFormRules: {
-          groupName: [
+          name: [
             {required: true, message: '请输入组名', trigger: 'blur'}
           ],
           role: [
@@ -136,8 +131,7 @@
         },
         editForm: {
           id: 0,
-          groupName: '',
-          role: '',
+          name: '',
           description: ''
         },
 
@@ -145,7 +139,7 @@
         addFormVisible: false,
         addLoading: false,
         addFormRules: {
-          groupName: [
+          name: [
             {required: true, message: '请输入组名', trigger: 'blur'}
           ],
           role: [
@@ -156,8 +150,7 @@
           ]
         },
         addForm: {
-          groupName: '',
-          role: '',
+          name: '',
           description: ''
         },
       }
@@ -175,10 +168,12 @@
       },
       //获取用户列表
       getGroup: function () {
+        this.offset = this.per_page * (this.page - 1);
         let para = {
-          page: this.page,
-          pagesize: this.per_page,
-          groupname: this.filters.groupName
+          user: this.sysUserName,
+          limit: this.per_page,
+          offset: this.offset,
+//          name: this.filters.name
         };
         this.listLoading = true;
         this.isVisible = false;
@@ -189,6 +184,20 @@
           this.listLoading = false;
           this.isVisible = true;
           //NProgress.done();
+        }).catch(err=>{
+          this.listLoading = false;
+          if (err.response.status == 401) {
+            this.$message({
+              message: "请重新登录",
+              type: 'error'
+            });
+            this.$router.push({ path: '/login' });
+          }else{
+            this.$message({
+              message: "获取数据失败",
+              type: 'error'
+            });
+          }
         });
       },
 
@@ -205,8 +214,11 @@
             this.$confirm('确认提交吗？', '提示', {}).then(() => {
               this.editLoading = true;
               //NProgress.start();
+              let user = {
+                user: this.sysUserName,
+              };
               let para = Object.assign({}, this.editForm);
-              reqEditGroup(para).then((res) => {
+              reqEditGroup(para.id,user, para).then((res) => {
                 this.editLoading = false;
                 //NProgress.done();
                 this.$message({
@@ -215,6 +227,15 @@
                 });
                 this.$refs['editForm'].resetFields();
                 this.editFormVisible = false;
+                this.getGroup();
+              }).catch(err=>{
+                this.addLoading = false;
+                this.$message({
+                  message: '添加失败：' + err.message,
+                  type: 'error'
+                });
+                this.$refs['addForm'].resetFields();
+                this.addFormVisible = false;
                 this.getGroup();
               });
             });
@@ -230,8 +251,7 @@
       showAddDialog: function (index, row) {
         this.addFormVisible = true;
         this.addForm = {
-          groupName: '',
-          role: '',
+          name: '',
           description: ''
         };
       },
@@ -240,13 +260,25 @@
           if (valid) {
             this.addLoading = true;
             //NProgress.start();
+            let user = {
+              user: this.sysUserName,
+            };
             let para = Object.assign({}, this.addForm);
-            reqAddGroup(para).then((res) => {
+            reqAddGroup(user, para).then((res) => {
               this.addLoading = false;
               //NProgress.done();
               this.$message({
                 message: '提交成功',
                 type: 'success'
+              });
+              this.$refs['addForm'].resetFields();
+              this.addFormVisible = false;
+              this.getGroup();
+            }).catch(err=>{
+              this.addLoading = false;
+              this.$message({
+                message: '添加失败：' + err.message,
+                type: 'error'
               });
               this.$refs['addForm'].resetFields();
               this.addFormVisible = false;
@@ -264,8 +296,8 @@
         this.$confirm('确认删除该记录吗?', '提示', {type: 'warning'}).then(() => {
           this.listLoading = true;
           //NProgress.start();
-          let para = {id: row.id};
-          reqDelGroup(para).then((res) => {
+          let para = {user: this.sysUserName};
+          reqDelGroup(row.id, para).then((res) => {
             this.listLoading = false;
             //NProgress.done();
             this.$message({
@@ -274,7 +306,12 @@
             });
             this.getGroup();
           });
-        }).catch(() => {
+        }).catch((err) => {
+          this.listLoading = false;
+          this.$message({
+            message: '删除失败',
+            type: 'error'
+          });
         });
       },
       //勾选
@@ -306,6 +343,11 @@
 
     },
     mounted() {
+      var accessInfo = sessionStorage.getItem('access-user');
+      if (accessInfo) {
+        accessInfo = JSON.parse(accessInfo);
+        this.sysUserName = accessInfo.username || '';
+      }
       this.getGroup();
     }
   }

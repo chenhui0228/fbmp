@@ -20,7 +20,7 @@
         <!--<el-button type="primary" @click="exportExcel" style="margin-left: 5px">导出</el-button>-->
         <el-form :inline="true" :model="filters" style="float:right; margin-right: 5px">
           <el-form-item>
-            <el-input v-model="filters.hostname" placeholder="主机名" style="min-width: 240px;"></el-input>
+            <el-input v-model="filters.ip" placeholder="IP地址" style="min-width: 240px;"></el-input>
           </el-form-item>
           <el-form-item>
             <el-button type="primary" @click="getWorker">查询</el-button>
@@ -38,18 +38,19 @@
           <template slot-scope="props">
             <el-form label-position="left" inline class="demo-table-expand">
               <el-form-item label="[主机描述]">
+                <br />
                 <span>{{ props.row.description }}</span>
               </el-form-item>
             </el-form>
           </template>
         </el-table-column>
-        <el-table-column prop="workername" label="主机名"sortable>
+        <el-table-column prop="name" label="主机名"sortable>
         </el-table-column>
         <el-table-column prop="ip" label="IP地址" sortable>
         </el-table-column>
-        <el-table-column prop="user" label="用户" sortable>
+        <el-table-column prop="port" label="端口号">
         </el-table-column>
-        <el-table-column prop="workertype" label="类型" sortable>
+        <el-table-column prop="owner" label="用户" sortable>
         </el-table-column>
         <!--<el-table-column prop="description" label="描述" sortable>-->
         <!--</el-table-column>-->
@@ -58,7 +59,7 @@
             <el-button size="small" @click="showEditDialog(scope.$index,scope.row)">
               <i class="iconfont icon-modiffy"></i>
             </el-button>
-            <el-button type="danger" @click="delGroup(scope.$index,scope.row)" size="small">
+            <el-button type="danger" @click="delWorker(scope.$index,scope.row)" size="small">
               <i class="iconfont icon-delete"></i>
             </el-button>
           </template>
@@ -81,24 +82,25 @@
       <!--编辑框 -->
       <el-dialog title="编辑" v-model="editFormVisible" :close-on-click-modal="false">
         <el-form :model="editForm" label-width="100px" :rules="editFormRules" ref="editForm">
-          <el-form-item prop="workername" label="主机名">
-            <el-input v-model="editForm.workername" auto-complete="off"></el-input>
+          <el-form-item prop="name" label="主机名">
+            <el-input v-model="editForm.name" auto-complete="off"></el-input>
           </el-form-item>
           <el-form-item prop="ip" label="IP地址">
             <el-input v-model="editForm.ip" auto-complete="off"></el-input>
           </el-form-item>
-          <el-form-item prop="user" label="用户">
-            <el-input v-model="editForm.user" auto-complete="off"></el-input>
+          <el-form-item prop="owner" label="用户">
+            <el-input v-model="editForm.owner" auto-complete="off"></el-input>
           </el-form-item>
-          <el-form-item prop="workertype" label="类型">
-            <el-select v-model="editForm.workertype" placeholder="请选择主机类型" clearable>
-              <el-option
-                v-for="item in options"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value">
-              </el-option>
-            </el-select>
+          <el-form-item prop="port" label="端口号">
+            <el-input v-model="editForm.port" auto-complete="off"></el-input>
+            <!--<el-select v-model="editForm.port" placeholder="请选择主机类型" clearable>-->
+              <!--<el-option-->
+                <!--v-for="item in options"-->
+                <!--:key="item.value"-->
+                <!--:label="item.label"-->
+                <!--:value="item.value">-->
+              <!--</el-option>-->
+            <!--</el-select>-->
           </el-form-item>
           <el-form-item prop="description" label="描述">
             <el-input type="textarea" v-model="editForm.description" :rows="4"></el-input>
@@ -113,24 +115,17 @@
       <!--新建框-->
       <el-dialog title="新建" v-model="addFormVisible" :close-on-click-modal="false">
         <el-form :model="addForm" label-width="100px" :rules="editFormRules" ref="addForm">
-          <el-form-item prop="workername" label="主机名">
-            <el-input v-model="addForm.workername" auto-complete="off"></el-input>
+          <el-form-item prop="name" label="主机名">
+            <el-input v-model="addForm.name" auto-complete="off"></el-input>
           </el-form-item>
           <el-form-item prop="ip" label="IP地址">
             <el-input v-model="addForm.ip" auto-complete="off"></el-input>
           </el-form-item>
-          <el-form-item prop="user" label="用户">
-            <el-input v-model="addForm.user" auto-complete="off"></el-input>
+          <el-form-item prop="owner" label="用户">
+            <el-input v-model="addForm.owner" auto-complete="off"></el-input>
           </el-form-item>
-          <el-form-item prop="workertype" label="类型">
-            <el-select v-model="addForm.workertype" placeholder="请选择主机类型" clearable>
-              <el-option
-                v-for="item in options"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value">
-              </el-option>
-            </el-select>
+          <el-form-item prop="port" label="端口号">
+            <el-input v-model="addForm.port" auto-complete="off"></el-input>
           </el-form-item>
           <el-form-item prop="description" label="描述">
             <el-input type="textarea" v-model="addForm.description" :rows="4"></el-input>
@@ -148,7 +143,7 @@
 </template>
 
 <script>
-  import { reqGetWorkerList, reqAddWorker, reqEditWorker, reqBatchDelWorker, reqDelWorker} from '../../api/api';
+  import { reqGetWorkerList, reqAddWorker, reqEditWorker, reqDelWorker} from '../../api/api';
 
   export default {
     data() {
@@ -161,6 +156,7 @@
         }
       };
       return {
+        sysUserName: '',
         filters: {
           ip: ''
         },
@@ -189,17 +185,17 @@
         editFormVisible: false,//编辑界面是否显示
         editLoading: false,
         editFormRules: {
-          workername: [
+          name: [
             {required: true, message: '请输入主机名', trigger: 'blur'}
           ],
           ip: [
             {required: true, validator: validateIp, trigger: 'blur'}
           ],
-          user: [
-            {required: true, message: '请输入角色', trigger: 'blur'}
+          owner: [
+            {required: true, message: '请输入用户', trigger: 'blur'}
           ],
-          workertype: [
-            {required: true, message: '请选择类型'}
+          port: [
+            {required: true, message: '请输入端口号'}
           ],
           description: [
             {required: true, message: '请输入描述', trigger: 'blur'}
@@ -207,10 +203,10 @@
         },
         editForm: {
           id: 0,
-          workername: '',
+          name: '',
           ip: '',
-          user: '',
-          workertype: '',
+          owner: '',
+          port: '',
           description: ''
         },
 
@@ -218,10 +214,10 @@
         addFormVisible: false,
         addLoading: false,
         addForm: {
-          workername: '',
+          name: '',
           ip: '',
-          user: '',
-          workertype: '',
+          owner: '',
+          port: '',
           description: ''
         },
       }
@@ -240,9 +236,10 @@
       //获取用户列表
       getWorker: function () {
         let para = {
-          page: this.page,
-          pagesize: this.per_page,
-          ip: this.filters.ip
+          user: this.sysUserName,
+//          page: this.page,
+//          pagesize: this.per_page,
+//          ip: this.filters.ip
         };
         this.listLoading = true;
         this.isVisible = false;
@@ -253,7 +250,21 @@
           this.listLoading = false;
           this.isVisible = true;
           //NProgress.done();
-        });
+        }).catch((err) => {
+          this.listLoading = false;
+          if (err.response.status == 401) {
+            this.$message({
+              message: "鉴权失败",
+              type: 'error'
+            });
+            this.$router.push({ path: '/login' });
+          }else{
+            this.$message({
+              message: "获取数据失败",
+              type: 'error'
+            });
+          }
+        })
       },
 
       //====编辑相关====
@@ -269,13 +280,25 @@
             this.$confirm('确认提交吗？', '提示', {}).then(() => {
               this.editLoading = true;
               //NProgress.start();
+              let user_para = {
+                user: this.sysUserName,
+              };
               let para = Object.assign({}, this.editForm);
-              reqEditWorker(para).then((res) => {
+              reqEditWorker(para.id,user_para,para).then((res) => {
                 this.editLoading = false;
                 //NProgress.done();
                 this.$message({
                   message: '提交成功',
                   type: 'success'
+                });
+                this.$refs['editForm'].resetFields();
+                this.editFormVisible = false;
+                this.getWorker();
+              }).catch(err=>{
+                this.editLoading = false;
+                this.$message({
+                  message: '提交失败：' + err.message,
+                  type: 'error'
                 });
                 this.$refs['editForm'].resetFields();
                 this.editFormVisible = false;
@@ -294,10 +317,10 @@
       showAddDialog: function (index, row) {
         this.addFormVisible = true;
         this.addForm = {
-          workername: '',
+          name: '',
           ip: '',
-          user: '',
-          workertype: '',
+          owner: '',
+          port: '',
           description: ''
         };
       },
@@ -306,13 +329,25 @@
           if (valid) {
             this.addLoading = true;
             //NProgress.start();
+            let user = {
+              user: this.sysUserName,
+            };
             let para = Object.assign({}, this.addForm);
-            reqAddWorker(para).then((res) => {
+            reqAddWorker(user, para).then((res) => {
               this.addLoading = false;
               //NProgress.done();
               this.$message({
                 message: '提交成功',
                 type: 'success'
+              });
+              this.$refs['addForm'].resetFields();
+              this.addFormVisible = false;
+              this.getWorker();
+            }).catch(err=>{
+              this.addLoading = false;
+              this.$message({
+                message: '添加失败：' + err.message,
+                type: 'error'
               });
               this.$refs['addForm'].resetFields();
               this.addFormVisible = false;
@@ -326,12 +361,12 @@
       },
       //====删除相关====
       //单个删除
-      delGroup: function (index, row) {
+      delWorker: function (index, row) {
         this.$confirm('确认删除该记录吗?', '提示', {type: 'warning'}).then(() => {
           this.listLoading = true;
           //NProgress.start();
-          let para = {id: row.id};
-          reqDelWorker(para).then((res) => {
+          let para = {user: this.sysUserName};
+          reqDelWorker(row.id, para).then((res) => {
             this.listLoading = false;
             //NProgress.done();
             this.$message({
@@ -339,8 +374,10 @@
               type: 'success'
             });
             this.getWorker();
+          }).catch((err) => {
+            this.listLoading = false;
+            alert(err.message)
           });
-        }).catch(() => {
         });
       },
       //勾选
@@ -356,22 +393,28 @@
           this.listLoading = true;
           //NProgress.start();
           let para = {ids: ids};
-          reqBatchDelWorker(para).then((res) => {
-            this.listLoading = false;
-            //NProgress.done();
-            this.$message({
-              message: '删除成功',
-              type: 'success'
-            });
-            this.getWorker();
-          });
-        }).catch(() => {
-
+          console.log(para);
+//          reqBatchDelWorker(para).then((res) => {
+//            this.listLoading = false;
+//            //NProgress.done();
+//            this.$message({
+//              message: '删除成功',
+//              type: 'success'
+//            });
+//            this.getWorker();
+//          }).catch((err) => {
+//            alert(err.message)
+//          });
         });
       },
 
     },
     mounted() {
+      var accessInfo = sessionStorage.getItem('access-user');
+      if (accessInfo) {
+        accessInfo = JSON.parse(accessInfo);
+        this.sysUserName = accessInfo.username || '';
+      }
       this.getWorker();
     }
   }

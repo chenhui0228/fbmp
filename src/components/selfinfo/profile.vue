@@ -8,30 +8,22 @@
     </el-col>
 
     <el-col :span="24" class="warp-main">
-      <el-form ref="form" :model="form" :rules="rules" label-width="80px">
+      <el-form ref="userForm" :model="userForm" :rules="rules" label-width="80px">
         <el-form-item label="用户名">
-          <el-input v-model="form.name" disabled></el-input>
+          <el-input v-model="userForm.name" disabled></el-input>
         </el-form-item>
-        <el-form-item prop="role" label="角色" >
-          <el-radio-group v-model="form.role">
-            <el-radio :label="0" :disabled="isSuperAdm">超级管理员</el-radio>
-            <el-radio :label="1">角色2</el-radio>
-            <el-radio :label="2">角色3</el-radio>
-            <el-radio :label="3">角色4</el-radio>
-            <el-radio :label="4">角色5</el-radio>
-          </el-radio-group>
+        <el-form-item label="角色" >
+            <el-select v-model="userForm.role_id" placeholder="角色选择">
+              <el-option v-for="role in roles"  :label="role.name" :value="role.id" :key="role.id"></el-option>
+            </el-select>
         </el-form-item>
-        <el-form-item prop="group" label="用户组">
-          <template>
-            <el-radio class="radio" v-model="form.group" :label="0">ALL</el-radio>
-            <el-radio class="radio" v-model="form.group" :label="1">网络组</el-radio>
-            <el-radio class="radio" v-model="form.group" :label="2">存储组</el-radio>
-            <el-radio class="radio" v-model="form.group" :label="3">数据库组</el-radio>
-            <el-radio class="radio" v-model="form.group" :label="4">系统组</el-radio>
-          </template>
+        <el-form-item label="用户组">
+          <el-select v-model="userForm.group_id" placeholder="组选择">
+            <el-option v-for="group in groups"  :label="group.name" :value="group.id" :key="group.id"></el-option>
+          </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="onSubmit">修改并保存</el-button>
+          <el-button type="primary" @click="submitUserProfile('userForm')">修改并保存</el-button>
         </el-form-item>
       </el-form>
     </el-col>
@@ -39,10 +31,11 @@
 </template>
 
 <script>
-  import {reqSaveUserProfile} from '../../api/api';
+  import {reqSaveUserProfile, reqGetUserProfile, reqGetRoleList, reqGetGroupList, reqUpdateUserProfile} from '../../api/api';
   import {bus} from '../../bus.js'
-
+  import export2Excel from '../../common/export2Excel'
   export default {
+    props: ["roles", "groups"],
     data() {
       return {
         form: {
@@ -50,6 +43,15 @@
           role: 0,
           group: 0
         },
+        sysUserName: '',
+        userForm: {
+          name: '',
+          role_id: '',
+          group_id: '',
+          created_at: ''
+        },
+        //roles: [],
+        //groups: [],
         isSuperAdm: false,
         rules: {
 
@@ -57,10 +59,71 @@
       }
     },
     created(){
-
+      bus.$on('roles', (obj) => {
+        this.roles = obj;
+      });
+      bus.$on('groups', (obj) => {
+        this.groups = obj;
+      });
     },
     methods: {
-
+      getRoles(username){
+        let params = {
+          user: username
+        };
+        reqGetRoleList(params).then(res => {
+          let { status, data } = res;
+          if (data == null) {
+            console.log("无法获取角色列表");
+          } else {
+            //this.roles = data.roles;
+            //bus.$emit('roles', data.roles);
+          }
+        },err => {
+          if (err.response.status == 401) {
+            this.$message({
+              message: "请重新登陆",
+              type: 'error'
+            });
+            sessionStorage.removeItem('access-user');
+            this.$router.push({ path: '/' });
+          } else {
+            this.$message({
+              message: "请求异常",
+              type: 'error'
+            });
+          }
+        });
+      },
+      getGroups(username){
+        let params = {
+          user: username
+        };
+        reqGetGroupList(params).then(res => {
+          let { status, data } = res;
+          if (data == null) {
+            console.log("无法获取组列表");
+          } else {
+            //this.groups = data.groups;
+            this.$emit("transferRoles", groups)
+            //bus.$emit('groups', data.groups);
+          }
+        },err => {
+          if (err.response.status == 401) {
+            this.$message({
+              message: "请重新登陆",
+              type: 'error'
+            });
+            sessionStorage.removeItem('access-user');
+            this.$router.push({ path: '/' });
+          } else {
+            this.$message({
+              message: "请求异常",
+              type: 'error'
+            });
+          }
+        });
+      },
       onSubmit() {
         var that = this;
         /**this.$refs.form.validate((valid) => {
@@ -88,11 +151,84 @@
             return false;
           }
         });*/
+      },
+      submitUserProfile(userForm){
+        let params = {
+          user: this.userForm.name,
+          userProfile: this.userForm
+        }
+        reqUpdateUserProfile(this.userForm).then(res => {
+          let { status, data } = res;
+          if (data == null) {
+            this.$message({
+              message: "修改失败！",
+              type: 'error'
+            });
+          } else {
+            this.$message({
+                message: "修改成功！",
+                type: 'success'
+            });
+            this.userForm = data.user;
+          }
+        },err => {
+          if (err.response.status == 401) {
+            this.$message({
+              message: "请重新登陆",
+              type: 'error'
+            });
+            sessionStorage.removeItem('access-user');
+            this.$router.push({ path: '/' });
+          } else {
+            this.$message({
+              message: "请求异常",
+              type: 'error'
+            });
+          }
+        });
+
+      },
+      getUserProfile(username){
+        let params = {
+          user: username,
+          name: username
+        };
+        reqGetUserProfile(params).then(res => {
+          let { status, data } = res;
+          if (data == null) {
+            this.$message({
+              message: "未获取到信息",
+              type: 'error'
+            });
+          } else {
+            this.userForm = data.users[0];
+          }
+        },err => {
+          if (err.response.status == 401) {
+            this.$message({
+              message: "请重新登陆",
+              type: 'error'
+            });
+            sessionStorage.removeItem('access-user');
+            this.$router.push({ path: '/' });
+          } else {
+            this.$message({
+              message: "请求异常",
+              type: 'error'
+            });
+          }
+        });
       }
     },
     mounted() {
-      var user = sessionStorage.getItem('access-user');
-      if (user) {
+      var accessInfo = sessionStorage.getItem('access-user');
+      this.sysUserName = JSON.parse(accessInfo).username;
+      //this.getRoles(this.sysUserName);
+      //this.getGroups(this.sysUserName);
+      this.getUserProfile(this.sysUserName);
+      //console.log(this.roles);
+      //console.log(this.groups);
+      /*if (user) {
         user = JSON.parse(user);
         this.form.name = user.name;
         this.form.role = user.role;
@@ -100,7 +236,7 @@
         if (this.form.role == 0) {
           this.isSuperAdm = false;
         }
-      }
+      }*/
     }
   }
 </script>
